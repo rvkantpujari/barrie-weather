@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+
+{% block title %}Barrie | {{ super() }}{% endblock %}
+
+{% block navbar %}
+    {% include 'navbar.html' %}
+{% endblock %}
+
+<!-- Content Block -->
+{% block content %}
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/1.3.5/jspdf.min.js"></script>
+<script type="text/javascript">
+    window.onresize = drawChart;
+    google.charts.load('current', {'packages':['controls', 'corechart']});
+    google.charts.setOnLoadCallback(drawChart);
+
+    function drawChart() 
+    {
+        var dataTable = new google.visualization.DataTable();
+        dataTable.addColumn('string', 'Time');
+        // Use custom tooltip.
+        dataTable.addColumn({'type': 'string', 'role': 'tooltip', 'p': {'html': true}});
+        dataTable.addColumn('number', 'Temperature');
+
+        // Data from app.py
+        let temp = {{ hrTemp }}; // List of Hourly Temperature values
+        let humidity = {{ hrHumidity }}; // List of Hourly Humidity values
+        let time = {{ hrTime | tojson }}; // List of Time values
+        let dates = {{ hrDates | tojson }}; // List of Date values
+        let icons = {{ hrIcons | tojson }}; // List of Hourly Weather Icons
+        let weather = {{ hrWeather|tojson }}; // List of Hourly Weather
+        
+        for(let i=0; i<47; i++)
+        {
+            // adding data in chart for display purpose
+            dataTable.addRow([time[i] + "", createCustomHTMLContent(temp[i] + "{{degSymbol}}C", dates[i] + "", time[i] + "", "http://openweathermap.org/img/wn/"+ icons[i] +".png", humidity[i] + "", weather[i]), temp[i]]);
+        }
+
+        var options = {
+            title: 'Barrie',
+            titleTextStyle: {fontSize: 22},
+            chartArea:{bottom: 100, width:'85%'},
+            // This line makes the entire category's tooltip active.
+            focusTarget: 'category',
+            backgroundColor: "#E6E7EE",
+            //hAxis :{"title":"48-hour Weather Forecast", showTextEvery:1, titleTextStyle: {marginTop:'10'}},
+            hAxis : {title: "48-hour Weather Forecast", showTextEvery: 2, titleTextStyle: {fontSize: 20}},
+            legend: {position: 'top', textStyle: {fontSize: 16}, alignment: 'end'},
+            //hAxis.gridlines.interval
+            // Use an HTML tooltip.
+            tooltip: { isHtml: true },
+            curveType: "function"
+        };
+        // Chart Div
+        let chart_div = document.getElementById('chart_div');
+        // Create and draw the visualization.
+        let chart = new google.visualization.LineChart(chart_div);
+        var btnSave = document.getElementById('save-pdf');
+
+        google.visualization.events.addListener(chart, 'ready', function () {
+            btnSave.disabled = false;
+        });
+
+        // PDF export button
+        btnSave.addEventListener('click', function () {
+            var doc = new jsPDF({
+                orientation: 'l',
+                unit: 'mm',
+                format: 'a4'
+            });
+            doc.addImage(chart.getImageURI(), 0, 0);
+            doc.save('chart.pdf');
+        }, false);
+
+        chart.draw(dataTable, options);
+    }
+
+    function createCustomHTMLContent(temp, date, time, flagURL, humidity, weather)
+    {
+        return '<div style="padding:5px 5px 5px 5px;min-width:180px;">'+
+            '<img class="img img-fluid" src="' + flagURL + '" style="width:40px;height:40px">'+
+            '<span style="margin-left:2px; font-weight:600; color:red;">'+ time +' - '+date +'</span>'+
+            '<h3 align="center">'+ temp +'</h3>'+
+            '<ul style="list-style:none;">'+
+                '<li style="font-size:13px;font-weight:bolder;">Humidity '+ humidity +'%</li>'+
+                '<li style="font-size:13px;font-weight:bolder;">'+ weather +'</li>'+
+            '</ul>'
+            +'</div>';
+    }
+</script>
+    
+<section class="section">
+    <div class="container mt-lg-n2 mt-5">
+        <div class="row">
+            <div class="col-lg-12 my-4">
+                <div class="card bg-primary shadow-soft border-light pb-4">
+                    <div class="no-gutters align-items-center">
+                        <!-- Header -->
+                        <div class="row text-center pt-4">
+                            <div class="col-sm-3">
+                                <h6 class="card-header mt-n1">{{datetime}}</h6>
+                                <h4>{{city | title}}<img title="{{current['weather'] | title}}" class="img-fluid" src="{{current['icon']}}" alt="Weather Icon" style="display: inline; margin-left: 4px; max-height: 64px; max-width: 64px; background-color: #bbb; border-radius: 5px;"></h4>
+                            </div>
+                            <div class="col-sm-3">
+                                <span class="display-2 font-weight-bold">{{current['temp']}}{{degSymbol}}C</span>
+                                <p>Current Temperature</p>
+                            </div>
+                            <div class="col-sm-3">
+                                <ul class="list-group list-group-flush price-list mb-2">
+                                    <li class="list-group-item border-primary pb-1"><span class="font-weight-bold">{{current['weather'] | title}}</span></li>
+                                    <li class="list-group-item border-primary pb-1"><span class="font-weight-bold">Visibility</span> <span class="font-weight-bolder">{{current['visibility']}}Km</span></li>
+                                </ul>
+                            </div>
+                            <div class="col-sm-3">
+                                <ul class="list-group list-group-flush price-list mb-2">
+                                    <li class="list-group-item border-primary pb-1"><span class="font-weight-bold">Feels like</span> <span class="font-weight-bolder">{{current['feels_like']}}{{degSymbol}}C</span></li>
+                                    <li class="list-group-item border-primary pb-1"><span class="font-weight-bold">Humidity</span> <span class="font-weight-bolder">{{current['humidity']}}%</span></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card bg-primary shadow-soft border-light px-2 py-4">
+                    <div class="card-header pb-0">
+                        <h2 class="h1 mb-1 px-4">Hourly Forecast</h2>
+                        <!--<p class="mb-5 lead">
+                            Contact management designed for teams and individuals
+                        </p>-->
+                    </div>
+                    <div class="card-body">
+                        <div class="row justify-content-center">
+                            <div class="col-sm-12">
+                                <div id="chart_div" style="height: 60vh; max-height: 80vh;"></div>
+                            </div>
+                        </div>
+                        <div class="row mt-4">
+                            <div class="col-sm-3"></div>
+                            <div class="col-sm-3"></div>
+                            <div class="col-sm-3"></div>
+                            <div class="col-sm-3">
+                                <input class="btn btn-primary" id="save-pdf" type="button" value="Save as PDF" disabled />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+<!-- Content Block Ends Here!!!-->
